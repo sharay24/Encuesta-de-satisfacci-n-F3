@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { SurveyResponse } from '../types/survey';
 import {
+  downloadNativeExcel,
   exportResponsesToCSV,
   DEFAULT_SPREADSHEET_ID,
   DEFAULT_SHEET_NAME,
@@ -80,7 +81,7 @@ export const ResponsesView: React.FC<ResponsesViewProps> = ({
         <div>
           <div className="flex items-center space-x-2">
             <span className="px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider bg-emerald-100 text-[#39A900]">
-              Hoja activa: {DEFAULT_SHEET_NAME}
+              Pestaña: {DEFAULT_SHEET_NAME}
             </span>
             <span className="text-gray-300">|</span>
             <span className="text-xs text-gray-500 font-medium">SENA Centro Agropecuario de Buga</span>
@@ -90,8 +91,8 @@ export const ResponsesView: React.FC<ResponsesViewProps> = ({
             <span>Respuestas Recibidas • Sala F3</span>
           </h2>
           <p className="text-xs sm:text-sm text-gray-500 mt-0.5">
-            Sincronizado con Google Sheets ID:{' '}
-            <strong className="text-gray-800 font-mono text-xs">{DEFAULT_SPREADSHEET_ID}</strong>
+            Registrado en Google Sheets (ID: <strong className="font-mono text-xs">{DEFAULT_SPREADSHEET_ID}</strong>) y
+            en archivo de Excel (.xlsx) en tiempo real.
           </p>
         </div>
 
@@ -104,8 +105,22 @@ export const ResponsesView: React.FC<ResponsesViewProps> = ({
             className="inline-flex items-center space-x-1.5 px-3 py-2 text-xs font-semibold text-gray-700 bg-white hover:bg-gray-50 border border-gray-300 rounded-xl shadow-xs transition-colors"
             title="Actualizar datos desde Google Sheets y servidor"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-emerald-600' : 'text-gray-500'}`} />
-            <span>{isRefreshing ? 'Sincronizando...' : 'Actualizar'}</span>
+            <RefreshCw
+              className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-emerald-600' : 'text-gray-500'}`}
+            />
+            <span>{isRefreshing ? 'Actualizando...' : 'Actualizar'}</span>
+          </button>
+
+          {/* Download Native Excel Button */}
+          <button
+            type="button"
+            onClick={() => downloadNativeExcel(responses)}
+            disabled={responses.length === 0}
+            className="inline-flex items-center space-x-1.5 px-4 py-2 text-xs font-bold text-white bg-emerald-700 hover:bg-emerald-800 rounded-xl shadow-sm transition-colors disabled:opacity-50"
+            title="Descargar archivo de Microsoft Excel (.xlsx)"
+          >
+            <Download className="w-3.5 h-3.5 text-emerald-200" />
+            <span>Descargar Excel (.xlsx)</span>
           </button>
 
           <a
@@ -123,10 +138,9 @@ export const ResponsesView: React.FC<ResponsesViewProps> = ({
             type="button"
             onClick={() => exportResponsesToCSV(responses)}
             disabled={responses.length === 0}
-            className="inline-flex items-center space-x-1.5 px-4 py-2 text-xs font-bold text-white bg-[#39A900] hover:bg-[#329200] rounded-xl shadow-sm shadow-emerald-900/10 transition-colors disabled:opacity-50"
+            className="inline-flex items-center space-x-1.5 px-3 py-2 text-xs font-medium text-gray-700 bg-white hover:bg-gray-50 border border-gray-300 rounded-xl transition-colors disabled:opacity-50"
           >
-            <Download className="w-3.5 h-3.5" />
-            <span>Descargar CSV / Excel</span>
+            <span>CSV</span>
           </button>
         </div>
       </div>
@@ -162,13 +176,13 @@ export const ResponsesView: React.FC<ResponsesViewProps> = ({
 
         <div className="bg-white p-4 rounded-2xl border border-gray-200 shadow-xs">
           <div className="flex items-center justify-between text-gray-500 mb-1">
-            <span className="text-xs font-semibold uppercase">Pestaña Destino</span>
+            <span className="text-xs font-semibold uppercase">Hoja Excel &amp; Cloud</span>
             <FileSpreadsheet className="w-4 h-4 text-emerald-700" />
           </div>
           <div className="text-sm font-mono font-bold text-emerald-800 bg-emerald-50 px-2 py-1 rounded-lg mt-1 inline-block">
             {DEFAULT_SHEET_NAME}
           </div>
-          <span className="text-[11px] text-gray-400 block mt-1">Conectada por defecto</span>
+          <span className="text-[11px] text-emerald-600 block mt-1">.xlsx disponible</span>
         </div>
       </div>
 
@@ -364,7 +378,7 @@ export const ResponsesView: React.FC<ResponsesViewProps> = ({
               Mostrando <strong>{filtered.length}</strong> de <strong>{total}</strong> respuestas
             </span>
             <span className="font-mono text-emerald-800 font-semibold">
-              Hoja: &quot;{DEFAULT_SHEET_NAME}&quot; (ID: {DEFAULT_SPREADSHEET_ID})
+              Hoja: &quot;{DEFAULT_SHEET_NAME}&quot; (.xlsx sincronizado)
             </span>
           </div>
         </div>
