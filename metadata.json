@@ -1,0 +1,6 @@
+{
+  "name": "Encuesta Sala F3 - SENA CAB",
+  "description": "Encuesta de satisfacción sobre el uso de la sala de computación F3 del Centro Agropecuario de Buga con registro en Google Sheets.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
