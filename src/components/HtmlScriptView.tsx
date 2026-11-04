@@ -1,11 +1,18 @@
 import React, { useState } from 'react';
-import { Code2, Copy, Check, FileSpreadsheet, Sparkles, Terminal, CheckCircle2 } from 'lucide-react';
+import { Code2, Copy, Check, FileSpreadsheet, ExternalLink } from 'lucide-react';
+import {
+  DEFAULT_SPREADSHEET_ID,
+  DEFAULT_SHEET_NAME,
+  DEFAULT_SPREADSHEET_URL,
+} from '../services/storage';
 
 export const HtmlScriptView: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'html' | 'appsScript'>('html');
   const [copied, setCopied] = useState(false);
 
   const htmlCode = `<!-- Formulario HTML de Encuesta - Sala F3 Centro Agropecuario de Buga -->
+<!-- Conectado por defecto con Google Sheets ID: ${DEFAULT_SPREADSHEET_ID} -->
+<!-- Pestaña: ${DEFAULT_SHEET_NAME} -->
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -24,7 +31,7 @@ export const HtmlScriptView: React.FC = () => {
     }
     * { box-sizing: border-box; }
     body {
-      font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
       background: var(--bg);
       color: var(--text);
       margin: 0;
@@ -35,7 +42,7 @@ export const HtmlScriptView: React.FC = () => {
       margin: 0 auto;
       background: var(--card-bg);
       border-radius: 16px;
-      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01);
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
       border: 1px solid var(--border);
       overflow: hidden;
     }
@@ -82,14 +89,7 @@ export const HtmlScriptView: React.FC = () => {
       margin: 0 0 10px;
       color: #0f172a;
     }
-    .question-title span.req {
-      color: #ef4444;
-    }
-    .question-desc {
-      font-size: 12px;
-      color: var(--text-muted);
-      margin: -6px 0 10px;
-    }
+    .question-title span.req { color: #ef4444; }
     .options-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
@@ -112,10 +112,7 @@ export const HtmlScriptView: React.FC = () => {
       background: #f1f5f9;
       border-color: #cbd5e1;
     }
-    .radio-card input {
-      accent-color: var(--sena-green);
-      margin: 0;
-    }
+    .radio-card input { accent-color: var(--sena-green); margin: 0; }
     input[type="text"], select, textarea {
       width: 100%;
       padding: 10px 14px;
@@ -141,9 +138,7 @@ export const HtmlScriptView: React.FC = () => {
       cursor: pointer;
       transition: background 0.2s;
     }
-    .submit-btn:hover {
-      background: #329200;
-    }
+    .submit-btn:hover { background: #329200; }
     #status-alert {
       display: none;
       margin-top: 16px;
@@ -160,7 +155,7 @@ export const HtmlScriptView: React.FC = () => {
     <div class="header">
       <div class="badge">SENA • Centro Agropecuario de Buga</div>
       <h1>Encuesta de Satisfacción • Sala F3</h1>
-      <p>Envío directo a la pestaña "Encuesta IA" de Google Sheets</p>
+      <p>Destino por defecto: Pestaña "${DEFAULT_SHEET_NAME}"</p>
     </div>
 
     <form id="f3-survey-form" class="form-body">
@@ -270,7 +265,7 @@ export const HtmlScriptView: React.FC = () => {
   </div>
 
   <script>
-    // Coloca aquí la URL de tu Google Apps Script si deseas guardar en Google Sheets directamente
+    // URL de tu Webhook de Google Apps Script para guardar en ${DEFAULT_SHEET_NAME}
     const SCRIPT_URL = 'PEGAR_AQUI_LA_URL_DEL_APPS_SCRIPT';
 
     document.getElementById('f3-survey-form').addEventListener('submit', function(e) {
@@ -286,7 +281,6 @@ export const HtmlScriptView: React.FC = () => {
       const data = Object.fromEntries(formData.entries());
       data.timestamp = new Date().toLocaleString('es-CO');
 
-      // Si no hay SCRIPT_URL, simula guardado o envia
       if (!SCRIPT_URL || SCRIPT_URL.includes('PEGAR_AQUI')) {
         setTimeout(() => {
           alertBox.style.display = 'block';
@@ -296,7 +290,7 @@ export const HtmlScriptView: React.FC = () => {
           btn.disabled = false;
           btn.innerText = 'Enviar Respuestas';
           document.getElementById('f3-survey-form').reset();
-        }, 600);
+        }, 500);
         return;
       }
 
@@ -310,10 +304,10 @@ export const HtmlScriptView: React.FC = () => {
         alertBox.style.display = 'block';
         alertBox.style.background = '#dcfce7';
         alertBox.style.color = '#166534';
-        alertBox.innerText = '¡Respuesta enviada con éxito a la pestaña "Encuesta IA"!';
+        alertBox.innerText = '¡Respuesta enviada con éxito a la hoja "${DEFAULT_SHEET_NAME}"!';
         document.getElementById('f3-survey-form').reset();
       })
-      .catch((err) => {
+      .catch(() => {
         alertBox.style.display = 'block';
         alertBox.style.background = '#fee2e2';
         alertBox.style.color = '#991b1b';
@@ -329,20 +323,20 @@ export const HtmlScriptView: React.FC = () => {
 </html>`;
 
   const appsScriptCode = `/**
- * Google Apps Script para guardar automáticamente en la pestaña "Encuesta IA"
- * de tu Hoja de Cálculo de Google.
+ * Google Apps Script vinculado por defecto a la hoja:
+ * ID: ${DEFAULT_SPREADSHEET_ID}
+ * Pestaña: "${DEFAULT_SHEET_NAME}"
  * 
- * PASOS PARA ACTIVARLO:
- * 1. Abre tu hoja de cálculo en Google Sheets.
+ * INSTRUCCIONES RÁPIDAS (Se hace una sola vez):
+ * 1. Abre tu hoja de cálculo: ${DEFAULT_SPREADSHEET_URL}
  * 2. En el menú superior ve a: Extensiones > Apps Script.
- * 3. Borra el código por defecto y pega este código completo.
+ * 3. Borra el código existente y pega este código completo.
  * 4. Haz clic en "Implementar" > "Nueva implementación".
- * 5. En tipo elige "Aplicación web".
- * 6. Configuración:
+ * 5. Tipo: "Aplicación web".
  *    - Ejecutar como: "Yo" (tu cuenta)
  *    - Quién tiene acceso: "Cualquier usuario" (Anyone)
- * 7. Haz clic en "Implementar" y copia la URL generada.
- * 8. Pégala en el campo Webhook de la aplicación o en tu formulario HTML.
+ * 6. Haz clic en "Implementar" y copia la URL generada.
+ * 7. Pégala en el botón de configuración de la app o en el formulario HTML.
  */
 
 function doPost(e) {
@@ -350,39 +344,42 @@ function doPost(e) {
   lock.tryLock(10000);
 
   try {
-    var ss = SpreadsheetApp.getActiveSpreadsheet();
-    var sheetName = "Encuesta IA";
-    var sheet = ss.getSheetByName(sheetName);
+    var SPREADSHEET_ID = "${DEFAULT_SPREADSHEET_ID}";
+    var TARGET_SHEET_NAME = "${DEFAULT_SHEET_NAME}";
+    
+    var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    var sheet = ss.getSheetByName(TARGET_SHEET_NAME);
 
-    // Si la pestaña "Encuesta IA" no existe, la crea automáticamente
+    // Si la pestaña "${DEFAULT_SHEET_NAME}" no existe, se crea automáticamente con encabezados
     if (!sheet) {
-      sheet = ss.insertSheet(sheetName);
+      sheet = ss.insertSheet(TARGET_SHEET_NAME);
       sheet.appendRow([
         "Marca temporal",
         "1. ¿Cuál es su relación con el SENA?",
-        "2. Programa de formación o área a la que pertenece",
-        "3. ¿Con qué frecuencia utiliza el ambiente F3?",
-        "4. ¿Cómo califica el estado y funcionamiento de los equipos?",
-        "5. ¿Cómo califica la conectividad y el acceso a internet?",
-        "6. ¿Cómo califica la limpieza, orden y comodidad del espacio?",
-        "7. ¿Cómo califica la iluminación y la ventilación?",
-        "8. ¿Cuenta con la disponibilidad de recursos y software necesarios?",
-        "9. En general, ¿qué tan satisfecho está con el ambiente F3?",
-        "10. ¿Qué aspectos considera que deben mejorarse o sugerencias?"
+        "2. Programa de formación o área",
+        "3. ¿Con qué frecuencia utiliza la sala F3?",
+        "4. Estado y funcionamiento de equipos",
+        "5. Conectividad y acceso a Internet",
+        "6. Limpieza, orden y comodidad del espacio",
+        "7. Iluminación y ventilación",
+        "8. Disponibilidad de recursos y software",
+        "9. Nivel general de satisfacción",
+        "10. Sugerencias de mejora"
       ]);
       sheet.setFrozenRows(1);
     }
 
-    // Procesar datos enviados
+    // Parsear datos recibidos
     var data = {};
-    if (e.postData && e.postData.contents) {
+    if (e && e.postData && e.postData.contents) {
       data = JSON.parse(e.postData.contents);
-    } else if (e.parameter) {
+    } else if (e && e.parameter) {
       data = e.parameter;
     }
 
     var timestamp = data.timestamp || new Date().toLocaleString("es-CO", { timeZone: "America/Bogota" });
 
+    // Fila correspondiente a las 10 preguntas
     var row = [
       timestamp,
       data.relation || "",
@@ -401,7 +398,7 @@ function doPost(e) {
 
     return ContentService.createTextOutput(JSON.stringify({
       status: "success",
-      message: "Respuesta guardada con éxito en Encuesta IA",
+      message: "Respuesta agregada exitosamente a " + TARGET_SHEET_NAME,
       row: sheet.getLastRow()
     })).setMimeType(ContentService.MimeType.JSON);
 
@@ -428,58 +425,42 @@ function doPost(e) {
       {/* Header */}
       <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <span className="px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider bg-emerald-100 text-[#39A900]">
-            Pestaña: &quot;Encuesta IA&quot;
-          </span>
+          <div className="flex items-center space-x-2">
+            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider bg-emerald-100 text-[#39A900]">
+              Hoja configurada: {DEFAULT_SHEET_NAME}
+            </span>
+            <span className="text-gray-300">|</span>
+            <span className="text-xs text-gray-500 font-mono">ID: {DEFAULT_SPREADSHEET_ID}</span>
+          </div>
           <h2 className="text-2xl font-bold text-gray-900 mt-1 flex items-center gap-2">
             <Code2 className="w-6 h-6 text-[#39A900]" />
             <span>Código HTML &amp; Google Apps Script</span>
           </h2>
           <p className="text-xs sm:text-sm text-gray-500 mt-0.5">
-            Usa este código para incrustar el formulario en cualquier página web y guardar directo en Google Sheets.
+            Configurado por defecto con tu hoja de cálculo para su uso directo en cualquier equipo o portal web.
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={handleCopy}
-          className="inline-flex items-center space-x-1.5 px-4 py-2.5 bg-[#39A900] hover:bg-[#329200] text-white rounded-xl text-xs font-bold shadow-sm shadow-emerald-900/10 transition-colors self-start sm:self-auto"
-        >
-          {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-          <span>{copied ? '¡Código Copiado!' : 'Copiar este código'}</span>
-        </button>
-      </div>
+        <div className="flex items-center space-x-2">
+          <a
+            href={DEFAULT_SPREADSHEET_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center space-x-1.5 px-3.5 py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-xl text-xs font-bold transition-colors"
+          >
+            <FileSpreadsheet className="w-3.5 h-3.5 text-[#39A900]" />
+            <span>Abrir Hoja</span>
+            <ExternalLink className="w-3 h-3 text-emerald-600" />
+          </a>
 
-      {/* Guide Steps */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
-        <div className="bg-white p-4 rounded-2xl border border-gray-200 shadow-xs">
-          <div className="w-6 h-6 rounded-full bg-emerald-100 text-[#39A900] font-bold text-xs flex items-center justify-center mb-2">
-            1
-          </div>
-          <h4 className="text-xs font-bold text-gray-800">Copia el Apps Script</h4>
-          <p className="text-[11px] text-gray-500 mt-1">
-            En tu Google Sheet ve a <strong>Extensiones &gt; Apps Script</strong> y pega el código.
-          </p>
-        </div>
-
-        <div className="bg-white p-4 rounded-2xl border border-gray-200 shadow-xs">
-          <div className="w-6 h-6 rounded-full bg-emerald-100 text-[#39A900] font-bold text-xs flex items-center justify-center mb-2">
-            2
-          </div>
-          <h4 className="text-xs font-bold text-gray-800">Implementa como Web App</h4>
-          <p className="text-[11px] text-gray-500 mt-1">
-            Haz clic en <strong>Implementar &gt; Nueva implementación</strong> con acceso para <em>Cualquier usuario</em>.
-          </p>
-        </div>
-
-        <div className="bg-white p-4 rounded-2xl border border-gray-200 shadow-xs">
-          <div className="w-6 h-6 rounded-full bg-emerald-100 text-[#39A900] font-bold text-xs flex items-center justify-center mb-2">
-            3
-          </div>
-          <h4 className="text-xs font-bold text-gray-800">Guarda en &quot;Encuesta IA&quot;</h4>
-          <p className="text-[11px] text-gray-500 mt-1">
-            Cada respuesta se agregará automáticamente en la pestaña llamada <strong>&quot;Encuesta IA&quot;</strong>.
-          </p>
+          <button
+            type="button"
+            onClick={handleCopy}
+            className="inline-flex items-center space-x-1.5 px-4 py-2.5 bg-[#39A900] hover:bg-[#329200] text-white rounded-xl text-xs font-bold shadow-sm shadow-emerald-900/10 transition-colors"
+          >
+            {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+            <span>{copied ? '¡Copiado!' : 'Copiar este código'}</span>
+          </button>
         </div>
       </div>
 
@@ -508,11 +489,11 @@ function doPost(e) {
                   : 'text-gray-600 hover:text-gray-900 border-transparent hover:bg-gray-200/50'
               }`}
             >
-              Google Apps Script (Pestaña &quot;Encuesta IA&quot;)
+              Google Apps Script (Pestaña &quot;{DEFAULT_SHEET_NAME}&quot;)
             </button>
           </div>
           <span className="text-[11px] font-mono text-gray-500 pb-2 hidden sm:inline">
-            {activeTab === 'html' ? 'index.html (HTML + CSS + JS)' : 'Code.gs (Apps Script)'}
+            {activeTab === 'html' ? 'index.html' : 'Code.gs (Apps Script)'}
           </span>
         </div>
 

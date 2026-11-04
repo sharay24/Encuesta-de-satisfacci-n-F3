@@ -1,97 +1,127 @@
 import { SurveyResponse } from '../types/survey';
 
-const RESPONSES_KEY = 'sena_f3_survey_responses_v2';
-const WEBHOOK_URL_KEY = 'sena_f3_apps_script_webhook_url';
+export const DEFAULT_SPREADSHEET_ID = '1SFlReSHJILvvhHjKl_xZpdLaiwi7Kmt7Tj4nDc6CwtY';
+export const DEFAULT_SHEET_NAME = 'Encuesta F3';
+export const DEFAULT_SPREADSHEET_URL = `https://docs.google.com/spreadsheets/d/${DEFAULT_SPREADSHEET_ID}/edit`;
 
-export const INITIAL_SEED_RESPONSES: SurveyResponse[] = [
-  {
-    timestamp: '27/10/2026, 8:59:01 p. m.',
-    relation: 'Aprendiz',
-    program: 'Tecnólogo en ADSO',
-    frequency: '2 o 3 veces por semana',
-    equipmentStatus: 'Excelente',
-    connectivity: 'Aceptable',
-    cleanlinessAndComfort: 'Bueno',
-    lightingAndVentilation: 'Excelente',
-    resourceAvailability: 'Siempre',
-    overallSatisfaction: 'Satisfecho',
-    improvementSuggestions: 'Mayor velocidad en la conexión a internet en horas pico.',
-  },
-  {
-    timestamp: '28/10/2026, 10:15:33 a. m.',
-    relation: 'Instructor',
-    program: 'Sistemas e Informática',
-    frequency: 'Todos los días',
-    equipmentStatus: 'Bueno',
-    connectivity: 'Bueno',
-    cleanlinessAndComfort: 'Excelente',
-    lightingAndVentilation: 'Bueno',
-    resourceAvailability: 'Siempre',
-    overallSatisfaction: 'Muy satisfecho',
-    improvementSuggestions: 'Revisión periódica de los teclados y mouse.',
-  },
-];
+const LOCAL_STORAGE_KEY = 'sena_f3_local_backup_responses';
 
-export function getStoredResponses(): SurveyResponse[] {
+export async function fetchAllResponses(): Promise<{
+  responses: SurveyResponse[];
+  spreadsheetId: string;
+  sheetName: string;
+}> {
   try {
-    const raw = localStorage.getItem(RESPONSES_KEY);
-    if (!raw) {
-      localStorage.setItem(RESPONSES_KEY, JSON.stringify(INITIAL_SEED_RESPONSES));
-      return INITIAL_SEED_RESPONSES;
+    const res = await fetch('/api/responses');
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data.responses)) {
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data.responses));
+        return {
+          responses: data.responses,
+          spreadsheetId: data.spreadsheetId || DEFAULT_SPREADSHEET_ID,
+          sheetName: data.sheetName || DEFAULT_SHEET_NAME,
+        };
+      }
     }
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : INITIAL_SEED_RESPONSES;
-  } catch {
-    return INITIAL_SEED_RESPONSES;
+  } catch (err) {
+    console.warn('Network fetch error, falling back to local cache:', err);
   }
-}
 
-export function saveResponse(newResponse: SurveyResponse): SurveyResponse[] {
-  const current = getStoredResponses();
-  const updated = [newResponse, ...current];
-  localStorage.setItem(RESPONSES_KEY, JSON.stringify(updated));
-  return updated;
-}
-
-export function deleteResponse(index: number): SurveyResponse[] {
-  const current = getStoredResponses();
-  const updated = current.filter((_, i) => i !== index);
-  localStorage.setItem(RESPONSES_KEY, JSON.stringify(updated));
-  return updated;
-}
-
-export function clearAllResponses(): SurveyResponse[] {
-  localStorage.setItem(RESPONSES_KEY, JSON.stringify([]));
-  return [];
-}
-
-export function getWebhookUrl(): string {
-  return localStorage.getItem(WEBHOOK_URL_KEY) || '';
-}
-
-export function saveWebhookUrl(url: string): void {
-  localStorage.setItem(WEBHOOK_URL_KEY, url.trim());
-}
-
-export async function sendToWebhookIfConfigured(response: SurveyResponse): Promise<boolean> {
-  const url = getWebhookUrl();
-  if (!url) return false;
-
+  // Fallback to local cache if offline
   try {
-    // Google Apps Script requires no-cors for direct browser forms
-    await fetch(url, {
+    const cached = localStorage.getItem(LOCAL_STORAGE_KEY);
+    if (cached) {
+      return {
+        responses: JSON.parse(cached),
+        spreadsheetId: DEFAULT_SPREADSHEET_ID,
+        sheetName: DEFAULT_SHEET_NAME,
+      };
+    }
+  } catch {
+    // ignore
+  }
+
+  return {
+    responses: [],
+    spreadsheetId: DEFAULT_SPREADSHEET_ID,
+    sheetName: DEFAULT_SHEET_NAME,
+  };
+}
+
+export async function submitResponseToServer(response: SurveyResponse): Promise<{
+  success: boolean;
+  item: SurveyResponse;
+  totalCount: number;
+}> {
+  try {
+    const res = await fetch('/api/submit', {
       method: 'POST',
-      mode: 'no-cors',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(response),
     });
-    return true;
+
+    if (res.ok) {
+      const data = await res.json();
+      return {
+        success: true,
+        item: data.item || response,
+        totalCount: data.totalCount || 1,
+      };
+    }
   } catch (err) {
-    console.warn('Error sending to Google Apps Script webhook:', err);
+    console.warn('Submit to backend failed, saving to local cache:', err);
+  }
+
+  // Local backup
+  const cached = localStorage.getItem(LOCAL_STORAGE_KEY);
+  const list = cached ? JSON.parse(cached) : [];
+  list.unshift(response);
+  localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(list));
+
+  return {
+    success: true,
+    item: response,
+    totalCount: list.length,
+  };
+}
+
+export async function saveWebhookConfig(webhookUrl: string): Promise<boolean> {
+  try {
+    const res = await fetch('/api/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ webhookUrl }),
+    });
+    return res.ok;
+  } catch {
     return false;
   }
+}
+
+export async function getBackendConfig(): Promise<{
+  spreadsheetId: string;
+  sheetName: string;
+  spreadsheetUrl: string;
+  webhookUrl: string;
+  hasWebhook: boolean;
+}> {
+  try {
+    const res = await fetch('/api/config');
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch {
+    // ignore
+  }
+
+  return {
+    spreadsheetId: DEFAULT_SPREADSHEET_ID,
+    sheetName: DEFAULT_SHEET_NAME,
+    spreadsheetUrl: DEFAULT_SPREADSHEET_URL,
+    webhookUrl: '',
+    hasWebhook: false,
+  };
 }
 
 export function exportResponsesToCSV(responses: SurveyResponse[]): void {
@@ -132,7 +162,7 @@ export function exportResponsesToCSV(responses: SurveyResponse[]): void {
   link.setAttribute('href', url);
   link.setAttribute(
     'download',
-    `Respuestas_Sala_F3_Encuesta_IA_${new Date().toISOString().slice(0, 10)}.csv`
+    `Respuestas_Sala_F3_Encuesta_F3_${new Date().toISOString().slice(0, 10)}.csv`
   );
   document.body.appendChild(link);
   link.click();

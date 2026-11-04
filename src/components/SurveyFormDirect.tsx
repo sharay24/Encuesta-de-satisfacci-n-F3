@@ -13,9 +13,16 @@ import {
   AlertTriangle,
   RotateCcw,
   TableProperties,
+  ExternalLink,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { SurveyResponse } from '../types/survey';
-import { saveResponse, sendToWebhookIfConfigured } from '../services/storage';
+import {
+  submitResponseToServer,
+  DEFAULT_SPREADSHEET_ID,
+  DEFAULT_SHEET_NAME,
+  DEFAULT_SPREADSHEET_URL,
+} from '../services/storage';
 
 interface SurveyFormDirectProps {
   onResponseSubmitted: () => void;
@@ -128,11 +135,8 @@ export const SurveyFormDirect: React.FC<SurveyFormDirectProps> = ({
         timestamp: now,
       };
 
-      // Direct save
-      saveResponse(finalResponse);
-
-      // Also trigger webhook asynchronously if configured
-      sendToWebhookIfConfigured(finalResponse);
+      // Direct submit to backend (syncs across devices and Google Sheets)
+      await submitResponseToServer(finalResponse);
 
       setSubmissionTime(now);
       setSubmittedSuccess(true);
@@ -176,13 +180,17 @@ export const SurveyFormDirect: React.FC<SurveyFormDirectProps> = ({
             ¡Muchas gracias por su opinión!
           </h2>
 
-          <p className="text-gray-600 text-sm sm:text-base leading-relaxed max-w-lg mx-auto mb-6">
+          <p className="text-gray-600 text-sm sm:text-base leading-relaxed max-w-lg mx-auto mb-4">
             Su respuesta para la <strong className="text-gray-900">Sala de Computación F3</strong> del{' '}
-            <strong className="text-gray-900">Centro Agropecuario de Buga</strong> ha sido registrada directamente y ya se encuentra disponible.
+            <strong className="text-gray-900">Centro Agropecuario de Buga</strong> ha sido registrada directamente y
+            vinculada con la hoja de cálculo por defecto en la pestaña{' '}
+            <span className="font-mono font-bold bg-emerald-100 text-emerald-900 px-2 py-0.5 rounded">
+              {DEFAULT_SHEET_NAME}
+            </span>.
           </p>
 
           {submissionTime && (
-            <div className="inline-flex items-center space-x-2 text-xs text-gray-500 bg-gray-50 border border-gray-200 px-4 py-2 rounded-xl mb-8">
+            <div className="inline-flex items-center space-x-2 text-xs text-gray-500 bg-gray-50 border border-gray-200 px-4 py-2 rounded-xl mb-6">
               <span>Registrado el:</span>
               <strong className="text-gray-800">{submissionTime} (hora Colombia)</strong>
             </div>
@@ -197,6 +205,18 @@ export const SurveyFormDirect: React.FC<SurveyFormDirectProps> = ({
               <TableProperties className="w-4 h-4" />
               <span>Ver en la pestaña &quot;Respuestas&quot;</span>
             </button>
+
+            <a
+              href={DEFAULT_SPREADSHEET_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full sm:w-auto inline-flex items-center justify-center space-x-2 px-6 py-3.5 bg-emerald-900 hover:bg-emerald-800 text-white font-semibold text-sm rounded-xl shadow-sm transition-colors"
+            >
+              <FileSpreadsheet className="w-4 h-4 text-emerald-300" />
+              <span>Abrir Google Sheets</span>
+              <ExternalLink className="w-3.5 h-3.5 text-emerald-300" />
+            </a>
+
             <button
               type="button"
               onClick={handleResetForm}
@@ -222,14 +242,15 @@ export const SurveyFormDirect: React.FC<SurveyFormDirectProps> = ({
         <div className="relative z-10">
           <div className="inline-flex items-center space-x-2 bg-white/20 backdrop-blur-md px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider mb-3">
             <Sparkles className="w-3.5 h-3.5 text-emerald-200" />
-            <span>SENA CAB • Regional Valle</span>
+            <span>SENA CAB • Buga</span>
           </div>
           <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
             Encuesta de Satisfacción • Sala F3
           </h2>
           <p className="mt-2 text-emerald-100 text-sm sm:text-base leading-relaxed max-w-2xl">
-            Centro Agropecuario de Buga. Completa estas 10 preguntas breves sobre el ambiente, conectividad,
-            equipos y mobiliario. El envío es directo e inmediato.
+            Tus respuestas se envían directamente y quedan conectadas con la hoja de cálculo por defecto{' '}
+            (ID: <span className="font-mono text-white underline">{DEFAULT_SPREADSHEET_ID}</span>, pestaña{' '}
+            <strong className="text-white underline font-mono">{DEFAULT_SHEET_NAME}</strong>) desde cualquier equipo.
           </p>
 
           {/* Progress Indicator */}
@@ -319,13 +340,13 @@ export const SurveyFormDirect: React.FC<SurveyFormDirectProps> = ({
               required
               value={formData.program}
               onChange={(e) => setFormData((p) => ({ ...p, program: e.target.value }))}
-              placeholder="Ej: ADSO, Mantenimiento de Computo, Gestión Agroempresarial..."
+              placeholder="Ej: ADSO, Mantenimiento de Cómputo, Gestión Agroempresarial..."
               className="w-full px-4 py-2.5 text-sm border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#39A900] focus:border-[#39A900]"
             />
           </div>
 
           <div className="mt-3 flex flex-wrap gap-1.5 items-center">
-            <span className="text-xs text-gray-400 mr-1">Opciones rápidas:</span>
+            <span className="text-xs text-gray-400 mr-1">Opciones frecuentes:</span>
             {PROGRAM_SUGGESTIONS.map((prog) => (
               <button
                 type="button"
@@ -641,7 +662,11 @@ export const SurveyFormDirect: React.FC<SurveyFormDirectProps> = ({
             <span className="block font-medium text-gray-800">
               Centro Agropecuario de Buga (CAB)
             </span>
-            <span>Envío directo • Registro en pestaña &quot;Encuesta IA&quot;</span>
+            <span>
+              Conectado por defecto a:{' '}
+              <strong className="text-emerald-800 font-mono">{DEFAULT_SHEET_NAME}</strong>{' '}
+              (ID: {DEFAULT_SPREADSHEET_ID.substring(0, 10)}...)
+            </span>
           </div>
 
           <button

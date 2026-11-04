@@ -5,37 +5,40 @@ import {
   Trash2,
   Search,
   CheckCircle2,
-  AlertCircle,
-  Link,
+  ExternalLink,
   Laptop,
   Smile,
   Users,
+  RefreshCw,
+  FileSpreadsheet,
   Settings,
 } from 'lucide-react';
 import { SurveyResponse } from '../types/survey';
 import {
   exportResponsesToCSV,
-  deleteResponse,
-  clearAllResponses,
-  getWebhookUrl,
-  saveWebhookUrl,
+  DEFAULT_SPREADSHEET_ID,
+  DEFAULT_SHEET_NAME,
+  DEFAULT_SPREADSHEET_URL,
+  saveWebhookConfig,
 } from '../services/storage';
 
 interface ResponsesViewProps {
   responses: SurveyResponse[];
   onResponsesUpdated: () => void;
   onGoToSurvey: () => void;
+  isRefreshing?: boolean;
 }
 
 export const ResponsesView: React.FC<ResponsesViewProps> = ({
   responses,
   onResponsesUpdated,
   onGoToSurvey,
+  isRefreshing = false,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedRole, setSelectedRole] = useState('Todos');
   const [showWebhookConfig, setShowWebhookConfig] = useState(false);
-  const [webhookInput, setWebhookInput] = useState(getWebhookUrl());
+  const [webhookInput, setWebhookInput] = useState('');
   const [webhookSavedNotice, setWebhookSavedNotice] = useState(false);
 
   // Filtered responses
@@ -63,23 +66,9 @@ export const ResponsesView: React.FC<ResponsesViewProps> = ({
   ).length;
   const goodEquipmentPercent = total > 0 ? Math.round((goodEquipmentCount / total) * 100) : 0;
 
-  const handleDelete = (index: number) => {
-    if (window.confirm('¿Deseas eliminar esta respuesta?')) {
-      deleteResponse(index);
-      onResponsesUpdated();
-    }
-  };
-
-  const handleClearAll = () => {
-    if (window.confirm('¿Estás seguro de que deseas borrar todas las respuestas registradas?')) {
-      clearAllResponses();
-      onResponsesUpdated();
-    }
-  };
-
-  const handleSaveWebhook = (e: React.FormEvent) => {
+  const handleSaveWebhook = async (e: React.FormEvent) => {
     e.preventDefault();
-    saveWebhookUrl(webhookInput);
+    await saveWebhookConfig(webhookInput);
     setWebhookSavedNotice(true);
     setTimeout(() => setWebhookSavedNotice(false), 2500);
   };
@@ -91,7 +80,7 @@ export const ResponsesView: React.FC<ResponsesViewProps> = ({
         <div>
           <div className="flex items-center space-x-2">
             <span className="px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider bg-emerald-100 text-[#39A900]">
-              Pestaña: &quot;Encuesta IA&quot;
+              Hoja activa: {DEFAULT_SHEET_NAME}
             </span>
             <span className="text-gray-300">|</span>
             <span className="text-xs text-gray-500 font-medium">SENA Centro Agropecuario de Buga</span>
@@ -101,7 +90,8 @@ export const ResponsesView: React.FC<ResponsesViewProps> = ({
             <span>Respuestas Recibidas • Sala F3</span>
           </h2>
           <p className="text-xs sm:text-sm text-gray-500 mt-0.5">
-            Registro consolidado de las 10 preguntas de la encuesta de satisfacción.
+            Sincronizado con Google Sheets ID:{' '}
+            <strong className="text-gray-800 font-mono text-xs">{DEFAULT_SPREADSHEET_ID}</strong>
           </p>
         </div>
 
@@ -109,12 +99,25 @@ export const ResponsesView: React.FC<ResponsesViewProps> = ({
         <div className="flex flex-wrap items-center gap-2.5">
           <button
             type="button"
-            onClick={() => setShowWebhookConfig(!showWebhookConfig)}
-            className="inline-flex items-center space-x-1.5 px-3.5 py-2 text-xs font-semibold text-gray-700 bg-white hover:bg-gray-50 border border-gray-300 rounded-xl shadow-xs transition-colors"
+            onClick={onResponsesUpdated}
+            disabled={isRefreshing}
+            className="inline-flex items-center space-x-1.5 px-3 py-2 text-xs font-semibold text-gray-700 bg-white hover:bg-gray-50 border border-gray-300 rounded-xl shadow-xs transition-colors"
+            title="Actualizar datos desde Google Sheets y servidor"
           >
-            <Settings className="w-3.5 h-3.5 text-gray-500" />
-            <span>{showWebhookConfig ? 'Ocultar Webhook' : 'Webhook Google Sheets'}</span>
+            <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-emerald-600' : 'text-gray-500'}`} />
+            <span>{isRefreshing ? 'Sincronizando...' : 'Actualizar'}</span>
           </button>
+
+          <a
+            href={DEFAULT_SPREADSHEET_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center space-x-1.5 px-3.5 py-2 text-xs font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-xl transition-colors"
+          >
+            <FileSpreadsheet className="w-3.5 h-3.5 text-[#39A900]" />
+            <span>Abrir Google Sheets</span>
+            <ExternalLink className="w-3 h-3 text-emerald-600" />
+          </a>
 
           <button
             type="button"
@@ -127,54 +130,6 @@ export const ResponsesView: React.FC<ResponsesViewProps> = ({
           </button>
         </div>
       </div>
-
-      {/* Optional Webhook Setup Card */}
-      {showWebhookConfig && (
-        <div className="mb-6 p-5 bg-emerald-50/70 border border-emerald-200 rounded-2xl animate-in fade-in duration-150">
-          <div className="flex items-start justify-between">
-            <div className="flex items-center space-x-2 text-emerald-900 font-bold text-sm">
-              <Link className="w-4 h-4 text-[#39A900]" />
-              <h4>Sincronización Directa con Google Sheets (Sin inicio de sesión)</h4>
-            </div>
-            <button
-              type="button"
-              onClick={() => setShowWebhookConfig(false)}
-              className="text-xs text-gray-400 hover:text-gray-700 font-semibold"
-            >
-              Cerrar
-            </button>
-          </div>
-          <p className="text-xs text-gray-600 mt-1 max-w-3xl leading-relaxed">
-            Si deseas que cada respuesta enviada por los aprendices o instructores viaje instantáneamente a tu
-            hoja de Google en la pestaña <strong>&quot;Encuesta IA&quot;</strong> sin necesidad de que inicien sesión,
-            pega aquí la URL de la aplicación web de Google Apps Script (el código completo está en la pestaña{' '}
-            <strong>HTML / Script</strong>).
-          </p>
-
-          <form onSubmit={handleSaveWebhook} className="mt-3 flex flex-col sm:flex-row gap-2 max-w-2xl">
-            <input
-              type="url"
-              placeholder="https://script.google.com/macros/s/.../exec"
-              value={webhookInput}
-              onChange={(e) => setWebhookInput(e.target.value)}
-              className="flex-1 px-3 py-2 text-xs border border-gray-300 rounded-xl bg-white focus:ring-2 focus:ring-[#39A900] focus:border-[#39A900]"
-            />
-            <button
-              type="submit"
-              className="px-4 py-2 bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold rounded-xl transition-colors shadow-xs"
-            >
-              Guardar Webhook
-            </button>
-          </form>
-
-          {webhookSavedNotice && (
-            <div className="mt-2 text-xs font-semibold text-emerald-800 flex items-center space-x-1">
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-              <span>¡URL del Webhook guardada exitosamente!</span>
-            </div>
-          )}
-        </div>
-      )}
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5 mb-6">
@@ -208,12 +163,12 @@ export const ResponsesView: React.FC<ResponsesViewProps> = ({
         <div className="bg-white p-4 rounded-2xl border border-gray-200 shadow-xs">
           <div className="flex items-center justify-between text-gray-500 mb-1">
             <span className="text-xs font-semibold uppercase">Pestaña Destino</span>
-            <TableProperties className="w-4 h-4 text-emerald-700" />
+            <FileSpreadsheet className="w-4 h-4 text-emerald-700" />
           </div>
           <div className="text-sm font-mono font-bold text-emerald-800 bg-emerald-50 px-2 py-1 rounded-lg mt-1 inline-block">
-            Encuesta IA
+            {DEFAULT_SHEET_NAME}
           </div>
-          <span className="text-[11px] text-gray-400 block mt-1">Google Sheets</span>
+          <span className="text-[11px] text-gray-400 block mt-1">Conectada por defecto</span>
         </div>
       </div>
 
@@ -245,18 +200,51 @@ export const ResponsesView: React.FC<ResponsesViewProps> = ({
             <option value="Egresado / Visitante">Visitante</option>
           </select>
 
-          {responses.length > 0 && (
-            <button
-              type="button"
-              onClick={handleClearAll}
-              className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors ml-auto"
-              title="Borrar todas las respuestas"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => setShowWebhookConfig(!showWebhookConfig)}
+            className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-xl transition-colors ml-auto"
+            title="Configurar Webhook automático de Apps Script"
+          >
+            <Settings className="w-4 h-4" />
+          </button>
         </div>
       </div>
+
+      {/* Optional Webhook setting */}
+      {showWebhookConfig && (
+        <div className="mb-4 p-4 bg-emerald-50/80 border border-emerald-200 rounded-2xl animate-in fade-in duration-150">
+          <h4 className="text-xs font-bold text-emerald-900 mb-1">
+            Reenvío en Tiempo Real a Google Sheets (Apps Script Webhook)
+          </h4>
+          <p className="text-[11px] text-gray-600 mb-2 leading-relaxed">
+            Si deseas que las respuestas se inserten automáticamente en la hoja de cálculo{' '}
+            <strong>{DEFAULT_SHEET_NAME}</strong> al instante sin confirmaciones de Google, pega aquí la URL
+            generada desde <em>Extensiones &gt; Apps Script</em> (el código listo está en la pestaña <strong>HTML / Script</strong>):
+          </p>
+          <form onSubmit={handleSaveWebhook} className="flex gap-2">
+            <input
+              type="url"
+              placeholder="https://script.google.com/macros/s/.../exec"
+              value={webhookInput}
+              onChange={(e) => setWebhookInput(e.target.value)}
+              className="flex-1 px-3 py-1.5 text-xs bg-white border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#39A900]"
+            />
+            <button
+              type="submit"
+              className="px-3.5 py-1.5 bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold rounded-xl shadow-xs"
+            >
+              Guardar
+            </button>
+          </form>
+          {webhookSavedNotice && (
+            <p className="text-[11px] text-emerald-700 font-semibold mt-1.5 flex items-center gap-1">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+              <span>¡Webhook guardado en el servidor!</span>
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Responses Table */}
       {filtered.length === 0 ? (
@@ -296,7 +284,6 @@ export const ResponsesView: React.FC<ResponsesViewProps> = ({
                   <th className="px-3 py-3 whitespace-nowrap">8. Recursos</th>
                   <th className="px-3 py-3 whitespace-nowrap">9. Satisfacción</th>
                   <th className="px-3 py-3 whitespace-nowrap">10. Sugerencias</th>
-                  <th className="px-3 py-3 whitespace-nowrap text-right">Acción</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 bg-white">
@@ -311,7 +298,10 @@ export const ResponsesView: React.FC<ResponsesViewProps> = ({
                         {item.relation}
                       </span>
                     </td>
-                    <td className="px-3 py-2.5 font-medium text-gray-900 whitespace-nowrap max-w-[160px] truncate" title={item.program}>
+                    <td
+                      className="px-3 py-2.5 font-medium text-gray-900 whitespace-nowrap max-w-[160px] truncate"
+                      title={item.program}
+                    >
                       {item.program}
                     </td>
                     <td className="px-3 py-2.5 text-gray-600 whitespace-nowrap">{item.frequency}</td>
@@ -364,16 +354,6 @@ export const ResponsesView: React.FC<ResponsesViewProps> = ({
                     <td className="px-3 py-2.5 text-gray-700 max-w-xs truncate" title={item.improvementSuggestions}>
                       {item.improvementSuggestions || <span className="text-gray-300 italic">Sin sugerencias</span>}
                     </td>
-                    <td className="px-3 py-2.5 text-right whitespace-nowrap">
-                      <button
-                        type="button"
-                        onClick={() => handleDelete(idx)}
-                        className="p-1 text-gray-400 hover:text-red-600 transition-colors"
-                        title="Eliminar fila"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -384,7 +364,7 @@ export const ResponsesView: React.FC<ResponsesViewProps> = ({
               Mostrando <strong>{filtered.length}</strong> de <strong>{total}</strong> respuestas
             </span>
             <span className="font-mono text-emerald-800 font-semibold">
-              Estructura lista para pestaña &quot;Encuesta IA&quot;
+              Hoja: &quot;{DEFAULT_SHEET_NAME}&quot; (ID: {DEFAULT_SPREADSHEET_ID})
             </span>
           </div>
         </div>
